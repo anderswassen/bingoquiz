@@ -1,5 +1,75 @@
 /* create.js — Teacher creates a quiz (with question pool support) */
 
+// ---------------------------------------------------------------------------
+// PIN gate
+// ---------------------------------------------------------------------------
+let verifiedPin = sessionStorage.getItem('bq_teacher_pin') || '';
+
+(async function checkPinGate() {
+  try {
+    const res = await fetch('/api/auth/status');
+    const { pinRequired } = await res.json();
+
+    if (!pinRequired) {
+      // No PIN configured — show create form directly
+      document.getElementById('create-section').classList.remove('hidden');
+      return;
+    }
+
+    // If we have a stored PIN, verify it
+    if (verifiedPin) {
+      const check = await fetch('/api/auth/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: verifiedPin }),
+      });
+      if (check.ok) {
+        document.getElementById('create-section').classList.remove('hidden');
+        return;
+      }
+      sessionStorage.removeItem('bq_teacher_pin');
+      verifiedPin = '';
+    }
+
+    // Show PIN gate
+    document.getElementById('pin-gate').classList.remove('hidden');
+
+    document.getElementById('pin-submit').addEventListener('click', submitPin);
+    document.getElementById('pin-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitPin();
+    });
+  } catch {
+    // Can't reach server — show form anyway, server will reject on create
+    document.getElementById('create-section').classList.remove('hidden');
+  }
+})();
+
+async function submitPin() {
+  const pin = document.getElementById('pin-input').value.trim();
+  if (!pin) { showToast('Ange en lärarkod.', 'error'); return; }
+
+  try {
+    const res = await fetch('/api/auth/verify-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      showToast(data.error || 'Fel kod.', 'error');
+      return;
+    }
+    verifiedPin = pin;
+    sessionStorage.setItem('bq_teacher_pin', pin);
+    document.getElementById('pin-gate').classList.add('hidden');
+    document.getElementById('create-section').classList.remove('hidden');
+  } catch {
+    showToast('Kunde inte ansluta till servern.', 'error');
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 const termsContainer = document.getElementById('terms-container');
 const termCount = document.getElementById('term-count');
 
@@ -317,7 +387,7 @@ document.getElementById('create-btn').addEventListener('click', async () => {
     const res = await fetch('/api/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, terms, boardSize }),
+      body: JSON.stringify({ title, terms, boardSize, pin: verifiedPin }),
     });
     const data = await res.json();
     if (!res.ok) {

@@ -9,6 +9,26 @@
 </head>
 <body>
   <main class="container narrow">
+    <!-- PIN gate (shown if TEACHER_PIN is set) -->
+    <div id="pin-gate" class="hidden">
+      <div class="text-center mt-3">
+        <h1>BingoQuiz</h1>
+        <p class="subtitle">Ange lärarkoden för att skapa ett spel</p>
+      </div>
+      <div class="join-form">
+        <div class="card">
+          <div class="field">
+            <label for="pin-input">Lärarkod</label>
+            <input type="password" id="pin-input" placeholder="Ange kod..." maxlength="20" autocomplete="off" autofocus
+              style="width:100%;padding:0.6rem 0.75rem;background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;color:var(--text-primary);font-family:'Inter',system-ui,sans-serif;font-size:0.85rem;outline:none;">
+          </div>
+          <button class="btn btn-primary" id="pin-submit" style="width:100%;margin-top:0.75rem;">Verifiera</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create form (hidden until PIN verified) -->
+    <div id="create-section" class="hidden">
     <h1>Skapa nytt spel</h1>
     <p class="subtitle" id="min-info">Ange minst 24 frågor med tillhörande svar (termer som visas på bingobrickan).</p>
 
@@ -76,6 +96,7 @@
       <button class="btn btn-primary" id="create-btn" style="font-size: 0.9rem; padding: 0.75rem 2rem;">Skapa spel</button>
       <span class="text-muted" id="term-count" aria-live="polite">0 frågor</span>
     </div>
+    </div><!-- /create-section -->
   </main>
 
   <div class="toast-container" id="toasts" aria-live="assertive"></div>

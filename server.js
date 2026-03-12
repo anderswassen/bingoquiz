@@ -16,6 +16,71 @@ app.use(express.json());
 app.get('/api/version', (_req, res) => res.json({ version: pkg.version }));
 
 // ---------------------------------------------------------------------------
+// Teacher PIN protection
+// ---------------------------------------------------------------------------
+const TEACHER_PIN = process.env.TEACHER_PIN || '';
+
+// Rate limiter: max 5 attempts per IP per 2 minutes
+const pinAttempts = new Map(); // ip → { count, firstAttempt }
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW = 2 * 60 * 1000; // 2 min
+const RATE_LIMIT_LOCKOUT = 5 * 60 * 1000; // 5 min lockout after exceeding
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = pinAttempts.get(ip);
+  if (!entry) return { allowed: true };
+  if (entry.lockedUntil && now < entry.lockedUntil) {
+    const secs = Math.ceil((entry.lockedUntil - now) / 1000);
+    return { allowed: false, retryAfter: secs };
+  }
+  if (now - entry.firstAttempt > RATE_LIMIT_WINDOW) {
+    pinAttempts.delete(ip);
+    return { allowed: true };
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    entry.lockedUntil = now + RATE_LIMIT_LOCKOUT;
+    return { allowed: false, retryAfter: Math.ceil(RATE_LIMIT_LOCKOUT / 1000) };
+  }
+  return { allowed: true };
+}
+
+function recordAttempt(ip) {
+  const now = Date.now();
+  const entry = pinAttempts.get(ip);
+  if (!entry || now - entry.firstAttempt > RATE_LIMIT_WINDOW) {
+    pinAttempts.set(ip, { count: 1, firstAttempt: now });
+  } else {
+    entry.count++;
+  }
+}
+
+app.get('/api/auth/status', (_req, res) => {
+  res.json({ pinRequired: !!TEACHER_PIN });
+});
+
+app.post('/api/auth/verify-pin', (req, res) => {
+  if (!TEACHER_PIN) return res.json({ ok: true });
+
+  const ip = req.ip;
+  const { allowed, retryAfter } = checkRateLimit(ip);
+  if (!allowed) {
+    return res.status(429).json({ ok: false, error: `För många försök. Vänta ${retryAfter} sekunder.` });
+  }
+
+  const { pin } = req.body;
+  if (pin === TEACHER_PIN) {
+    pinAttempts.delete(ip); // reset on success
+    return res.json({ ok: true });
+  }
+
+  recordAttempt(ip);
+  const entry = pinAttempts.get(ip);
+  const remaining = RATE_LIMIT_MAX - entry.count;
+  res.status(403).json({ ok: false, error: remaining > 0 ? `Fel lärarkod. ${remaining} försök kvar.` : 'För många försök. Vänta 5 minuter.' });
+});
+
+// ---------------------------------------------------------------------------
 // Question pools — load from /data/*.json at startup
 // ---------------------------------------------------------------------------
 const pools = new Map();
@@ -160,6 +225,10 @@ function snapshotRound(game) {
 // REST — create & check games
 // ---------------------------------------------------------------------------
 app.post('/api/games', (req, res) => {
+  if (TEACHER_PIN && req.body.pin !== TEACHER_PIN) {
+    return res.status(403).json({ error: 'Ogiltig lärarkod.' });
+  }
+
   const { title, terms, boardSize: rawSize } = req.body;
   const size = [3, 4, 5].includes(rawSize) ? rawSize : 5;
   const hasFree = size % 2 === 1;

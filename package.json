@@ -1,6 +1,6 @@
 {
   "name": "bingoquiz",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Gamifierat bingo-läxförhör för klassrummet",
   "main": "server.js",
   "scripts": {
