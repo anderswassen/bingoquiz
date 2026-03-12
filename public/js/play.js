@@ -15,6 +15,8 @@ let freeIdx = -1;
 let currentQuestionIndex = null;
 let currentRoundCell = null;        // cell index selected THIS round (can change)
 let hasBingo = false;
+let timerInterval = null;
+let timerExpired = false;
 
 function calcFreeIndex(size) {
   return size % 2 === 1 ? Math.floor(size * size / 2) : -1;
@@ -30,6 +32,64 @@ function showToast(msg, type = 'info') {
   t.textContent = msg;
   c.appendChild(t);
   setTimeout(() => t.remove(), 4000);
+}
+
+// ---------------------------------------------------------------------------
+// Timer
+// ---------------------------------------------------------------------------
+function startTimer(deadline) {
+  clearTimer();
+  if (!deadline) return;
+
+  timerExpired = false;
+  const bar = document.getElementById('timer-bar');
+  const fill = document.getElementById('timer-fill');
+  const text = document.getElementById('timer-text');
+  bar.classList.remove('hidden');
+  bar.classList.remove('urgent');
+
+  const totalMs = deadline - Date.now();
+  if (totalMs <= 0) { expireTimer(); return; }
+
+  timerInterval = setInterval(() => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      expireTimer();
+      return;
+    }
+    const pct = (remaining / totalMs) * 100;
+    const secs = Math.ceil(remaining / 1000);
+    fill.style.width = pct + '%';
+    text.textContent = secs + 's';
+
+    if (remaining <= 5000) {
+      bar.classList.add('urgent');
+    }
+  }, 100);
+}
+
+function clearTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  const bar = document.getElementById('timer-bar');
+  if (bar) { bar.classList.add('hidden'); bar.classList.remove('urgent'); }
+}
+
+function expireTimer() {
+  clearTimer();
+  timerExpired = true;
+  const bar = document.getElementById('timer-bar');
+  const fill = document.getElementById('timer-fill');
+  const text = document.getElementById('timer-text');
+  bar.classList.remove('hidden');
+  bar.classList.add('urgent');
+  fill.style.width = '0%';
+  text.textContent = 'Tiden är ute!';
+
+  // Disable cell clicks visually
+  document.querySelectorAll('.bingo-cell.clickable').forEach(el => {
+    el.classList.remove('clickable');
+    el.classList.add('disabled');
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +154,7 @@ socket.on('board-assigned', (data) => {
     currentQuestionIndex = data.currentQuestion.index;
     currentRoundCell = data.currentQuestion.currentCell;
     showQuestion(data.currentQuestion.question);
+    if (data.currentQuestion.deadline) startTimer(data.currentQuestion.deadline);
   }
 
   renderBoard();
@@ -103,11 +164,13 @@ socket.on('board-assigned', (data) => {
   }
 });
 
-socket.on('question-asked', ({ index, question }) => {
+socket.on('question-asked', ({ index, question, deadline }) => {
   currentQuestionIndex = index;
   currentRoundCell = null;
+  timerExpired = false;
   showQuestion(question);
   renderBoard();
+  if (deadline) startTimer(deadline); else clearTimer();
 });
 
 socket.on('cell-changed', ({ oldCellIndex, newCellIndex }) => {
@@ -142,6 +205,7 @@ socket.on('you-got-bingo', () => {
 socket.on('answer-revealed', ({ correctCellIndex, selectedCellIndex, wasCorrect, correctAnswer }) => {
   currentQuestionIndex = null;
   currentRoundCell = null;
+  clearTimer();
 
   // Flash the correct cell green
   if (correctCellIndex >= 0) {
@@ -229,9 +293,14 @@ socket.on('review-ended', () => {
   setTimeout(() => overlay.classList.add('hidden'), 3000);
 });
 
+socket.on('answer-too-late', () => {
+  showToast('Tiden har gått ut!', 'error');
+});
+
 socket.on('game-ended', ({ title }) => {
   currentQuestionIndex = null;
   currentRoundCell = null;
+  clearTimer();
   const box = document.getElementById('question-box');
   box.innerHTML = '<div class="cq-text">Spelet är avslutat! Tack för att du deltog.</div>';
   document.querySelectorAll('.bingo-cell').forEach(el => {
@@ -371,6 +440,7 @@ function updateCellStates() {
 function onCellClick(index) {
   if (index === freeIdx) return;
   if (currentQuestionIndex === null) return;
+  if (timerExpired) return;
   if (isLockedCell(index)) return;
   if (index === currentRoundCell) return; // already selected
 

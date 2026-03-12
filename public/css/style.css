@@ -750,6 +750,17 @@ textarea::placeholder {
   font-size: 0.85rem;
 }
 .student-item .s-name.disconnected { opacity: 0.4; }
+.answered-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wasabi);
+  box-shadow: 0 0 8px var(--wasabi);
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: fadeUp 0.3s ease;
+}
 .student-item.has-bingo {
   background: var(--badge-green-bg);
   border-radius: 8px;
@@ -1342,6 +1353,58 @@ textarea::placeholder {
   border-color: var(--hot) !important;
   color: var(--hot) !important;
   box-shadow: 0 0 12px rgba(255, 92, 124, 0.15);
+}
+
+/* Timer bar */
+.timer-bar {
+  position: relative;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+.timer-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  background: var(--wasabi);
+  border-radius: 8px;
+  transition: width 0.15s linear;
+}
+.timer-bar.urgent .timer-fill {
+  background: var(--hot);
+  animation: timer-pulse 0.5s ease-in-out infinite;
+}
+.timer-text {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  z-index: 1;
+}
+@keyframes timer-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Toggle row for create form */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--wasabi);
 }
 
 /* Scrollbar */

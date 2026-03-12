@@ -1343,6 +1343,204 @@ async function runTests() {
   });
 
   // =========================================================================
+  console.log('\n— Response Time & Change-Mind Analysis —');
+  // =========================================================================
+
+  await test('questionStats includes response time data', async () => {
+    const terms = makeTerms();
+    const { data: created } = await fetchJSON('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'RespTime', terms, boardSize: 5 }),
+    });
+
+    const teacher = connect();
+    teacher.emit('teacher-join', { code: created.code });
+    await waitFor(teacher, 'game-state');
+
+    const student = connect();
+    student.emit('student-join', { code: created.code, name: 'Tina' });
+    const board = await waitFor(student, 'board-assigned');
+    await waitFor(teacher, 'student-joined');
+
+    teacher.emit('ask-question', { code: created.code, questionIndex: 0 });
+    await waitFor(student, 'question-asked');
+
+    const cell = board.board.findIndex((c, i) => i !== 12 && c.id !== '__free__');
+    student.emit('submit-answer', { code: created.code, playerId: board.playerId, cellIndex: cell });
+    await waitFor(student, 'cell-changed');
+    await waitFor(teacher, 'student-update');
+
+    teacher.emit('end-game', { code: created.code });
+    const results = await waitFor(teacher, 'game-results');
+
+    const qs = results.questionStats[0];
+    assert(qs.avgResponseMs !== null, 'has avgResponseMs');
+    assert(qs.avgResponseMs >= 0, 'avgResponseMs is non-negative');
+    assert(qs.medianResponseMs !== null, 'has medianResponseMs');
+    assertEq(typeof qs.changedToCorrect, 'number', 'has changedToCorrect');
+    assertEq(typeof qs.changedToWrong, 'number', 'has changedToWrong');
+
+    teacher.disconnect();
+    student.disconnect();
+  });
+
+  await test('Per-student avgResponseMs in results', async () => {
+    const terms = makeTerms();
+    const { data: created } = await fetchJSON('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'StudentTime', terms, boardSize: 5 }),
+    });
+
+    const teacher = connect();
+    teacher.emit('teacher-join', { code: created.code });
+    await waitFor(teacher, 'game-state');
+
+    const student = connect();
+    student.emit('student-join', { code: created.code, name: 'Vera' });
+    const board = await waitFor(student, 'board-assigned');
+    await waitFor(teacher, 'student-joined');
+
+    teacher.emit('ask-question', { code: created.code, questionIndex: 0 });
+    await waitFor(student, 'question-asked');
+
+    const cell = board.board.findIndex((c, i) => i !== 12 && c.id !== '__free__');
+    student.emit('submit-answer', { code: created.code, playerId: board.playerId, cellIndex: cell });
+    await waitFor(student, 'cell-changed');
+    await waitFor(teacher, 'student-update');
+
+    teacher.emit('end-game', { code: created.code });
+    const results = await waitFor(teacher, 'game-results');
+
+    assert(results.results[0].avgResponseMs !== null, 'student has avgResponseMs');
+    assert(results.results[0].avgResponseMs >= 0, 'student avgResponseMs non-negative');
+
+    teacher.disconnect();
+    student.disconnect();
+  });
+
+  await test('Change-mind: wrong→right tracked as changedToCorrect', async () => {
+    const terms = makeTerms();
+    const { data: created } = await fetchJSON('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'ChangeMind', terms, boardSize: 5 }),
+    });
+
+    const teacher = connect();
+    teacher.emit('teacher-join', { code: created.code });
+    await waitFor(teacher, 'game-state');
+
+    const student = connect();
+    student.emit('student-join', { code: created.code, name: 'Wilma' });
+    const board = await waitFor(student, 'board-assigned');
+    await waitFor(teacher, 'student-joined');
+
+    teacher.emit('ask-question', { code: created.code, questionIndex: 0 });
+    await waitFor(student, 'question-asked');
+
+    // First: click a wrong cell
+    const wrongCell = board.board.findIndex((c, i) => i !== 12 && c.id !== '__free__' && c.id !== terms[0].id);
+    student.emit('submit-answer', { code: created.code, playerId: board.playerId, cellIndex: wrongCell });
+    await waitFor(student, 'cell-changed');
+    await waitFor(teacher, 'student-update');
+
+    // Then: click the correct cell
+    const correctCell = board.board.findIndex(c => c.id === terms[0].id);
+    if (correctCell >= 0 && correctCell !== 12) {
+      student.emit('submit-answer', { code: created.code, playerId: board.playerId, cellIndex: correctCell });
+      await waitFor(student, 'cell-changed');
+      await waitFor(teacher, 'student-update');
+    }
+
+    teacher.emit('end-game', { code: created.code });
+    const results = await waitFor(teacher, 'game-results');
+
+    const qs = results.questionStats[0];
+    if (correctCell >= 0 && correctCell !== 12) {
+      assertEq(qs.changedToCorrect, 1, 'one changed to correct');
+      assertEq(qs.changedToWrong, 0, 'zero changed to wrong');
+    }
+
+    teacher.disconnect();
+    student.disconnect();
+  });
+
+  await test('Change-mind: right→wrong tracked as changedToWrong', async () => {
+    const terms = makeTerms();
+    const { data: created } = await fetchJSON('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'ChangeMind2', terms, boardSize: 5 }),
+    });
+
+    const teacher = connect();
+    teacher.emit('teacher-join', { code: created.code });
+    await waitFor(teacher, 'game-state');
+
+    const student = connect();
+    student.emit('student-join', { code: created.code, name: 'Xena' });
+    const board = await waitFor(student, 'board-assigned');
+    await waitFor(teacher, 'student-joined');
+
+    teacher.emit('ask-question', { code: created.code, questionIndex: 0 });
+    await waitFor(student, 'question-asked');
+
+    // First: click the correct cell
+    const correctCell = board.board.findIndex(c => c.id === terms[0].id);
+    if (correctCell >= 0 && correctCell !== 12) {
+      student.emit('submit-answer', { code: created.code, playerId: board.playerId, cellIndex: correctCell });
+      await waitFor(student, 'cell-changed');
+      await waitFor(teacher, 'student-update');
+
+      // Then: click a wrong cell
+      const wrongCell = board.board.findIndex((c, i) => i !== 12 && c.id !== '__free__' && c.id !== terms[0].id);
+      student.emit('submit-answer', { code: created.code, playerId: board.playerId, cellIndex: wrongCell });
+      await waitFor(student, 'cell-changed');
+      await waitFor(teacher, 'student-update');
+    }
+
+    teacher.emit('end-game', { code: created.code });
+    const results = await waitFor(teacher, 'game-results');
+
+    const qs = results.questionStats[0];
+    if (correctCell >= 0 && correctCell !== 12) {
+      assertEq(qs.changedToWrong, 1, 'one changed to wrong');
+      assertEq(qs.changedToCorrect, 0, 'zero changed to correct');
+    }
+
+    teacher.disconnect();
+    student.disconnect();
+  });
+
+  await test('No answer gives null responseMs', async () => {
+    const terms = makeTerms();
+    const { data: created } = await fetchJSON('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'NoAnswer', terms, boardSize: 5 }),
+    });
+
+    const teacher = connect();
+    teacher.emit('teacher-join', { code: created.code });
+    await waitFor(teacher, 'game-state');
+
+    const student = connect();
+    student.emit('student-join', { code: created.code, name: 'Ylva' });
+    await waitFor(student, 'board-assigned');
+    await waitFor(teacher, 'student-joined');
+
+    // Ask question but student does NOT answer
+    teacher.emit('ask-question', { code: created.code, questionIndex: 0 });
+    await waitFor(student, 'question-asked');
+
+    teacher.emit('end-game', { code: created.code });
+    const results = await waitFor(teacher, 'game-results');
+
+    assertEq(results.results[0].avgResponseMs, null, 'no answer → null avgResponseMs');
+    assertEq(results.questionStats[0].avgResponseMs, null, 'no answers → null question avgResponseMs');
+
+    teacher.disconnect();
+    student.disconnect();
+  });
+
+  // =========================================================================
   console.log('\n— Edge Cases —');
   // =========================================================================
 

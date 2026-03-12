@@ -325,6 +325,11 @@ termsContainer.addEventListener('input', updateCount);
 updateMinInfo();
 loadPools();
 
+// Timer toggle
+document.getElementById('timer-toggle').addEventListener('change', (e) => {
+  document.getElementById('timer-config').classList.toggle('hidden', !e.target.checked);
+});
+
 // Add row
 document.getElementById('add-row-btn').addEventListener('click', () => {
   const row = createRow();
@@ -387,7 +392,12 @@ document.getElementById('create-btn').addEventListener('click', async () => {
     const res = await fetch('/api/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, terms, boardSize, pin: verifiedPin }),
+      body: JSON.stringify({
+        title, terms, boardSize, pin: verifiedPin,
+        timerSeconds: document.getElementById('timer-toggle').checked
+          ? Math.max(5, Math.min(300, parseInt(document.getElementById('timer-seconds').value) || 30))
+          : 0,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {

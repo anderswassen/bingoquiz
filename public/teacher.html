@@ -26,6 +26,10 @@
       <div class="aq-label">Aktuell fråga</div>
       <div class="aq-question" id="aq-question"></div>
       <div class="aq-answer">Svar: <strong id="aq-answer"></strong></div>
+      <div class="timer-bar hidden" id="teacher-timer-bar" style="margin-top: 0.5rem;">
+        <div class="timer-fill" id="teacher-timer-fill"></div>
+        <span class="timer-text" id="teacher-timer-text"></span>
+      </div>
       <div class="gap-row mt-1" style="justify-content: space-between; align-items: center;">
         <span class="text-muted" style="font-size: 0.75rem;">
           Svar inkomna: <strong id="aq-response-count">0</strong> / <strong id="aq-student-count">0</strong>
@@ -87,6 +91,9 @@
       <div class="section-label mt-2">Per fråga</div>
       <div id="results-question-stats"></div>
 
+      <div class="section-label mt-2">Ändrad-sig-analys</div>
+      <div id="results-change-mind" class="text-muted" style="font-size: 0.82rem;">Inga data.</div>
+
       <div class="section-label mt-2">Svåraste begreppen</div>
       <div id="results-hard-terms" class="text-muted" style="font-size: 0.82rem;">Inga data.</div>
 
@@ -110,7 +117,8 @@
       </div>
       <div class="review-distribution mt-2" id="review-dist"></div>
       <div class="review-distractors mt-1" id="review-distractors"></div>
-      <div class="text-center mt-2">
+      <div class="gap-row mt-2" style="justify-content: center">
+        <button class="btn" id="review-prev-btn" style="padding: 0.65rem 2.5rem;">Föregående</button>
         <button class="btn btn-primary" id="review-next-btn" style="padding: 0.65rem 2.5rem;">Nästa fråga</button>
       </div>
     </div>

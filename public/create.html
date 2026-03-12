@@ -92,6 +92,20 @@
       </div>
     </div>
 
+    <div class="card" style="animation-delay: 0.1s">
+      <div class="section-label">Timer</div>
+      <label class="toggle-row">
+        <input type="checkbox" id="timer-toggle">
+        <span>Aktivera nedräkning per fråga</span>
+      </label>
+      <div id="timer-config" class="hidden" style="margin-top: 0.75rem;">
+        <label for="timer-seconds">Sekunder per fråga</label>
+        <input type="number" id="timer-seconds" value="30" min="5" max="300" step="5"
+          style="width: 5rem; padding: 0.5rem 0.6rem; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; color: var(--text-primary); font-family: 'Inter', system-ui, sans-serif; font-size: 0.85rem;">
+        <span class="text-muted" style="margin-left: 0.5rem; font-size: 0.75rem;">5–300 sek</span>
+      </div>
+    </div>
+
     <div class="actions-bar mt-2">
       <button class="btn btn-primary" id="create-btn" style="font-size: 0.9rem; padding: 0.75rem 2rem;">Skapa spel</button>
       <span class="text-muted" id="term-count" aria-live="polite">0 frågor</span>

@@ -188,24 +188,49 @@ function snapshotRound(game) {
   const distractors = {};
   let correctCount = 0;
   let noAnswerCount = 0;
+  const responseTimes = [];           // ms from question to first answer
+  let changedToCorrect = 0;           // wrong → right
+  let changedToWrong = 0;             // right → wrong
 
   game.students.forEach((student, playerId) => {
     const cellIndex = game.currentRoundAnswers.get(playerId);
+    const timing = game.currentRoundTimes.get(playerId);
+
     if (cellIndex === undefined || cellIndex === null) {
-      answers.set(playerId, { cellIndex: null, chosenTermId: null, chosenAnswer: null, correct: false });
+      answers.set(playerId, { cellIndex: null, chosenTermId: null, chosenAnswer: null, correct: false, responseMs: null });
       noAnswerCount++;
       return;
     }
     const chosenTerm = student.board[cellIndex];
     const isCorrect = chosenTerm.id === correctTerm.id;
-    answers.set(playerId, { cellIndex, chosenTermId: chosenTerm.id, chosenAnswer: chosenTerm.answer, correct: isCorrect });
+    const responseMs = timing && game.questionAskedAt ? timing.firstAt - game.questionAskedAt : null;
+    answers.set(playerId, { cellIndex, chosenTermId: chosenTerm.id, chosenAnswer: chosenTerm.answer, correct: isCorrect, responseMs });
+
+    if (responseMs !== null) responseTimes.push(responseMs);
+
     if (isCorrect) {
       correctCount++;
     } else {
       if (!distractors[chosenTerm.id]) distractors[chosenTerm.id] = { answer: chosenTerm.answer, count: 0 };
       distractors[chosenTerm.id].count++;
     }
+
+    // Tally change-mind directions
+    if (timing && timing.changes.length > 0) {
+      for (const ch of timing.changes) {
+        if (ch.fromCorrect && !ch.toCorrect) changedToWrong++;
+        if (!ch.fromCorrect && ch.toCorrect) changedToCorrect++;
+      }
+    }
   });
+
+  // Compute response time statistics
+  const avgResponseMs = responseTimes.length > 0
+    ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
+    : null;
+  const medianResponseMs = responseTimes.length > 0
+    ? (() => { const s = [...responseTimes].sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); })()
+    : null;
 
   game.questionHistory.push({
     questionIndex: qi,
@@ -218,6 +243,10 @@ function snapshotRound(game) {
     noAnswerCount,
     distractors,
     totalStudents: game.students.size,
+    avgResponseMs,
+    medianResponseMs,
+    changedToCorrect,
+    changedToWrong,
   });
 }
 
@@ -229,8 +258,10 @@ app.post('/api/games', (req, res) => {
     return res.status(403).json({ error: 'Ogiltig lärarkod.' });
   }
 
-  const { title, terms, boardSize: rawSize } = req.body;
+  const { title, terms, boardSize: rawSize, timerSeconds: rawTimer } = req.body;
   const size = [3, 4, 5].includes(rawSize) ? rawSize : 5;
+  const rawTimerVal = parseInt(rawTimer) || 0;
+  const timerSeconds = rawTimerVal > 0 ? Math.min(Math.max(rawTimerVal, 5), 300) : 0;
   const hasFree = size % 2 === 1;
   const minTerms = hasFree ? size * size - 1 : size * size;
 
@@ -248,7 +279,11 @@ app.post('/api/games', (req, res) => {
     students: new Map(),
     teacherSocketId: null,
     currentRoundAnswers: new Map(),   // playerId → cellIndex
+    currentRoundTimes: new Map(),     // playerId → { firstAt, changes[] }
+    questionAskedAt: null,            // epoch ms when current question was asked
     hesitations: new Map(),           // termId → count (abandoned clicks)
+    timerSeconds,                     // 0 = no timer
+    questionDeadline: null,           // epoch ms when current question expires
     questionHistory: [],              // per-question stats, populated at reveal
     reviewPhase: false,
     reviewIndex: -1,
@@ -282,6 +317,10 @@ function emitReviewQuestion(game, teacherSocket) {
     totalStudents: h.totalStudents,
     correctPct: h.totalStudents > 0 ? Math.round((h.correctCount / h.totalStudents) * 100) : 0,
     distractors: Object.values(h.distractors).sort((a, b) => b.count - a.count),
+    avgResponseMs: h.avgResponseMs,
+    medianResponseMs: h.medianResponseMs,
+    changedToCorrect: h.changedToCorrect,
+    changedToWrong: h.changedToWrong,
   });
 
   // Send personalized data to each student
@@ -336,6 +375,8 @@ io.on('connection', (socket) => {
       title: game.title,
       terms: game.terms,
       boardSize: game.boardSize,
+      timerSeconds: game.timerSeconds,
+      questionDeadline: game.questionDeadline,
       currentQuestionIndex: game.currentQuestionIndex,
       askedQuestions: [...game.askedQuestions],
       hesitations: Object.fromEntries(game.hesitations),
@@ -367,6 +408,7 @@ io.on('connection', (socket) => {
           question: game.terms[game.currentQuestionIndex].question,
           alreadyAnswered: game.currentRoundAnswers.has(playerId),
           currentCell: game.currentRoundAnswers.get(playerId) ?? null,
+          deadline: game.questionDeadline,
         } : null,
         hasBingo: student.hasBingo,
       });
@@ -397,6 +439,7 @@ io.on('connection', (socket) => {
           question: game.terms[game.currentQuestionIndex].question,
           alreadyAnswered: false,
           currentCell: null,
+          deadline: game.questionDeadline,
         } : null,
         hasBingo: false,
       });
@@ -425,14 +468,21 @@ io.on('connection', (socket) => {
     game.currentQuestionIndex = questionIndex;
     game.askedQuestions.add(questionIndex);
     game.currentRoundAnswers = new Map();
+    game.currentRoundTimes = new Map();
+    game.questionAskedAt = Date.now();
+
+    // Compute deadline if timer is enabled
+    const deadline = game.timerSeconds > 0 ? Date.now() + game.timerSeconds * 1000 : null;
+    game.questionDeadline = deadline;
 
     const q = game.terms[questionIndex];
     io.to(`game:${code}`).emit('question-asked', {
       index: questionIndex,
       question: q.question,
+      deadline,
     });
 
-    socket.emit('question-active', { questionIndex, answer: q.answer });
+    socket.emit('question-active', { questionIndex, answer: q.answer, deadline });
   });
 
   // ---- Student submits answer ----
@@ -442,6 +492,13 @@ io.on('connection', (socket) => {
 
     const student = game.students.get(playerId);
     if (!student) return;
+
+    // Reject answers after timer deadline (1s grace period for network lag)
+    if (game.questionDeadline && Date.now() > game.questionDeadline + 1000) {
+      socket.emit('answer-too-late');
+      return;
+    }
+
     const fi = freeIndex(game.boardSize);
     if (cellIndex === fi) return;
 
@@ -452,17 +509,37 @@ io.on('connection', (socket) => {
     // Clicking the same cell again — ignore
     if (cellIndex === previousCell) return;
 
+    // --- Track response time & changes ---
+    const now = Date.now();
+    let roundTime = game.currentRoundTimes.get(playerId);
+    if (!roundTime) {
+      roundTime = { firstAt: now, changes: [] };
+      game.currentRoundTimes.set(playerId, roundTime);
+    }
+
     // --- Un-mark previous selection for this round (if any) ---
     let oldCellIndex = null;
     if (previousCell !== undefined) {
       oldCellIndex = previousCell;
+      const oldTerm = student.board[previousCell];
+      const correctTerm = game.terms[game.currentQuestionIndex];
+      const wasOldCorrect = oldTerm.id === correctTerm.id;
+
       student.marks[previousCell] = { marked: false, correct: false };
 
       // Record hesitation on the abandoned term
-      const abandonedTerm = student.board[previousCell];
-      if (abandonedTerm.id !== '__free__') {
-        game.hesitations.set(abandonedTerm.id, (game.hesitations.get(abandonedTerm.id) || 0) + 1);
+      if (oldTerm.id !== '__free__') {
+        game.hesitations.set(oldTerm.id, (game.hesitations.get(oldTerm.id) || 0) + 1);
       }
+
+      // Track change direction
+      const newTerm = student.board[cellIndex];
+      const isNewCorrect = newTerm.id === correctTerm.id;
+      roundTime.changes.push({
+        at: now,
+        fromCorrect: wasOldCorrect,
+        toCorrect: isNewCorrect,
+      });
     }
 
     // --- Mark new selection ---
@@ -531,9 +608,10 @@ io.on('connection', (socket) => {
       correctAnswer: correctTerm.answer,
     });
 
-    // Clear current question
+    // Clear current question and timer
     game.currentQuestionIndex = null;
     game.currentRoundAnswers = new Map();
+    game.questionDeadline = null;
   });
 
   // ---- Teacher ends the game ----
@@ -551,6 +629,14 @@ io.on('connection', (socket) => {
     game.students.forEach((s, id) => {
       const correct = s.marks.filter(m => m.marked && m.correct).length - (fi >= 0 ? 1 : 0);
       const wrong = s.marks.filter(m => m.marked && !m.correct).length;
+
+      // Compute per-student avg response time
+      const studentTimes = [];
+      game.questionHistory.forEach(h => {
+        const a = h.answers.get(id);
+        if (a && a.responseMs !== null) studentTimes.push(a.responseMs);
+      });
+
       results.push({
         id,
         name: s.name,
@@ -558,6 +644,9 @@ io.on('connection', (socket) => {
         wrongCount: wrong,
         hasBingo: s.hasBingo,
         bestStreak: bestStreak(s.marks, game.boardSize),
+        avgResponseMs: studentTimes.length > 0
+          ? Math.round(studentTimes.reduce((a, b) => a + b, 0) / studentTimes.length)
+          : null,
       });
     });
 
@@ -593,6 +682,10 @@ io.on('connection', (socket) => {
         totalStudents: h.totalStudents,
         correctPct: h.totalStudents > 0 ? Math.round((h.correctCount / h.totalStudents) * 100) : 0,
         distractors: Object.values(h.distractors).sort((a, b) => b.count - a.count),
+        avgResponseMs: h.avgResponseMs,
+        medianResponseMs: h.medianResponseMs,
+        changedToCorrect: h.changedToCorrect,
+        changedToWrong: h.changedToWrong,
       })),
     });
 
@@ -606,6 +699,14 @@ io.on('connection', (socket) => {
 
     game.reviewPhase = true;
     game.reviewIndex = 0;
+    emitReviewQuestion(game, socket);
+  });
+
+  socket.on('review-prev', ({ code }) => {
+    const game = games.get(code);
+    if (!game || !game.reviewPhase || game.reviewIndex <= 0) return;
+
+    game.reviewIndex--;
     emitReviewQuestion(game, socket);
   });
 

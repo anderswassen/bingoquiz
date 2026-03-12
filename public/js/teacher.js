@@ -9,6 +9,8 @@ let gameState = null;
 let boardSize = 5;
 let freeIdx = -1;
 const students = new Map();
+const answeredThisRound = new Set(); // track who answered current question
+let teacherTimerInterval = null;
 
 function calcFreeIndex(size) {
   return size % 2 === 1 ? Math.floor(size * size / 2) : -1;
@@ -112,8 +114,9 @@ function renderStudents() {
       const streak = s.bestStreak || 0;
       const li = document.createElement('li');
       li.className = `student-item${s.hasBingo ? ' has-bingo' : ''}`;
+      const hasAnswered = answeredThisRound.has(s.id);
       li.innerHTML = `
-        <span class="s-name ${s.connected ? '' : 'disconnected'}">${esc(s.name)}${!s.connected ? ' (frånkopplad)' : ''}</span>
+        <span class="s-name ${s.connected ? '' : 'disconnected'}">${hasAnswered ? '<span class="answered-dot"></span>' : ''}${esc(s.name)}${!s.connected ? ' (frånkopplad)' : ''}</span>
         <span class="streak-indicator" title="Närmast bingo: ${streak}/${boardSize}">
           <span class="streak-bar"><span class="streak-fill" style="width: ${(streak / boardSize) * 100}%"></span></span>
           <span class="streak-label">${streak}/${boardSize}</span>
@@ -172,6 +175,46 @@ document.getElementById('student-modal').addEventListener('click', (e) => {
 });
 
 // ---------------------------------------------------------------------------
+// Teacher timer
+// ---------------------------------------------------------------------------
+function startTeacherTimer(deadline) {
+  clearTeacherTimer();
+  if (!deadline) return;
+
+  const bar = document.getElementById('teacher-timer-bar');
+  const fill = document.getElementById('teacher-timer-fill');
+  const text = document.getElementById('teacher-timer-text');
+  bar.classList.remove('hidden');
+  bar.classList.remove('urgent');
+
+  const totalMs = deadline - Date.now();
+  if (totalMs <= 0) { text.textContent = 'Tiden är ute!'; fill.style.width = '0%'; bar.classList.add('urgent'); return; }
+
+  teacherTimerInterval = setInterval(() => {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      clearInterval(teacherTimerInterval);
+      teacherTimerInterval = null;
+      fill.style.width = '0%';
+      text.textContent = 'Tiden är ute!';
+      bar.classList.add('urgent');
+      return;
+    }
+    const pct = (remaining / totalMs) * 100;
+    const secs = Math.ceil(remaining / 1000);
+    fill.style.width = pct + '%';
+    text.textContent = secs + 's';
+    if (remaining <= 5000) bar.classList.add('urgent');
+  }, 250);
+}
+
+function clearTeacherTimer() {
+  if (teacherTimerInterval) { clearInterval(teacherTimerInterval); teacherTimerInterval = null; }
+  const bar = document.getElementById('teacher-timer-bar');
+  if (bar) { bar.classList.add('hidden'); bar.classList.remove('urgent'); }
+}
+
+// ---------------------------------------------------------------------------
 // Socket events
 // ---------------------------------------------------------------------------
 socket.on('student-joined', (s) => {
@@ -192,12 +235,14 @@ socket.on('student-disconnected', ({ id }) => {
   renderStudents();
 });
 
-socket.on('question-active', ({ questionIndex, answer }) => {
+socket.on('question-active', ({ questionIndex, answer, deadline }) => {
   gameState.currentQuestionIndex = questionIndex;
   if (!gameState.askedQuestions.includes(questionIndex)) {
     gameState.askedQuestions.push(questionIndex);
   }
+  answeredThisRound.clear();
   renderQuestions();
+  renderStudents();
 
   // Show banner (reset reveal state)
   const banner = document.getElementById('aq-banner');
@@ -208,6 +253,8 @@ socket.on('question-active', ({ questionIndex, answer }) => {
   document.getElementById('aq-response-count').textContent = '0';
   document.getElementById('reveal-btn').disabled = false;
   document.getElementById('reveal-btn').textContent = 'Visa svaret';
+
+  if (deadline) startTeacherTimer(deadline); else clearTeacherTimer();
 });
 
 socket.on('student-update', (data) => {
@@ -219,6 +266,8 @@ socket.on('student-update', (data) => {
   s.wrongCount = data.wrongCount;
   s.bestStreak = data.bestStreak;
 
+  if (data.lastAnswer) answeredThisRound.add(data.id);
+
   renderStudents();
 
   // Update hesitations if included
@@ -226,23 +275,9 @@ socket.on('student-update', (data) => {
     renderHesitations(data.hesitations);
   }
 
-  // Update response count (count unique students who have answered this round)
+  // Update response count from tracked set
   if (gameState.currentQuestionIndex !== null) {
-    let responded = 0;
-    students.forEach(st => {
-      // A student has responded if they have any mark that wasn't there before
-      // Simple heuristic: count from the update
-      const totalMarked = st.marks.filter(m => m.marked).length;
-      const freeCount = freeIdx >= 0 ? 1 : 0;
-      if (totalMarked > freeCount) responded++;
-    });
-    // This overcounts — use a simpler approach: track per question
-    // For now, just increment
-    const el = document.getElementById('aq-response-count');
-    const prev = parseInt(el.textContent || '0');
-    // Only increment if this is a new answer (not a change)
-    if (!data.lastAnswer) return;
-    el.textContent = Math.min(students.size, prev + 1);
+    document.getElementById('aq-response-count').textContent = answeredThisRound.size;
   }
 });
 
@@ -307,6 +342,7 @@ document.getElementById('reveal-btn').addEventListener('click', () => {
 });
 
 socket.on('answer-revealed-teacher', ({ questionIndex, correctAnswer }) => {
+  clearTeacherTimer();
   const banner = document.getElementById('aq-banner');
   banner.classList.add('revealed');
   document.getElementById('reveal-btn').disabled = true;
@@ -342,13 +378,14 @@ function showResultsModal(data) {
   table.className = 'results-table';
   table.innerHTML = `
     <thead><tr>
-      <th>#</th><th>Namn</th><th>Rätt</th><th>Fel</th><th>Bingo</th><th>Streak</th>
+      <th>#</th><th>Namn</th><th>Rätt</th><th>Fel</th><th>Bingo</th><th>Streak</th><th>Snitt svarstid</th>
     </tr></thead>
   `;
   const tbody = document.createElement('tbody');
   data.results.forEach((r, i) => {
     const tr = document.createElement('tr');
     tr.className = r.hasBingo ? 'bingo-row' : '';
+    const avgTime = r.avgResponseMs != null ? formatMs(r.avgResponseMs) : '—';
     tr.innerHTML = `
       <td>${i + 1}</td>
       <td>${esc(r.name)}</td>
@@ -356,6 +393,7 @@ function showResultsModal(data) {
       <td>${r.wrongCount}</td>
       <td>${r.hasBingo ? 'Ja' : 'Nej'}</td>
       <td>${r.bestStreak}/${data.boardSize}</td>
+      <td>${avgTime}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -379,6 +417,9 @@ function showResultsModal(data) {
     hardEl.innerHTML = '<span class="text-muted">Inga svåra begrepp registrerade.</span>';
   }
 
+  // Change-mind analysis summary
+  renderChangeMindSummary(data.questionStats || []);
+
   // Per-question stats
   renderQuestionStats(data.questionStats || []);
 
@@ -386,6 +427,50 @@ function showResultsModal(data) {
   window._lastResults = data;
 
   document.getElementById('results-modal').classList.add('visible');
+}
+
+// Change-mind summary
+function renderChangeMindSummary(stats) {
+  const el = document.getElementById('results-change-mind');
+  if (!stats || stats.length === 0) {
+    el.innerHTML = '<span class="text-muted" style="font-size: 0.82rem;">Inga data.</span>';
+    return;
+  }
+
+  let totalToCorrect = 0;
+  let totalToWrong = 0;
+  const questionsWithChanges = [];
+
+  stats.forEach((s, i) => {
+    totalToCorrect += s.changedToCorrect || 0;
+    totalToWrong += s.changedToWrong || 0;
+    if ((s.changedToCorrect || 0) + (s.changedToWrong || 0) > 0) {
+      questionsWithChanges.push({ index: i, ...s });
+    }
+  });
+
+  if (totalToCorrect === 0 && totalToWrong === 0) {
+    el.innerHTML = '<span class="text-muted" style="font-size: 0.82rem;">Inga elever ändrade sig under spelet.</span>';
+    return;
+  }
+
+  let html = '<div class="gap-row mb-1" style="gap:0.5rem;flex-wrap:wrap;">';
+  html += `<span class="badge badge-green" style="font-size:0.72rem;">${totalToCorrect} gånger fel&rarr;rätt</span>`;
+  html += `<span class="badge badge-red" style="font-size:0.72rem;">${totalToWrong} gånger rätt&rarr;fel</span>`;
+  html += '</div>';
+
+  if (questionsWithChanges.length > 0) {
+    html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.5rem;">';
+    questionsWithChanges.forEach(q => {
+      const parts = [];
+      if (q.changedToCorrect > 0) parts.push(`<span style="color:var(--wasabi)">${q.changedToCorrect} &rarr; rätt</span>`);
+      if (q.changedToWrong > 0) parts.push(`<span style="color:var(--hot)">${q.changedToWrong} &rarr; fel</span>`);
+      html += `<div>Fråga ${q.index + 1}: ${esc(q.question)} — ${parts.join(', ')}</div>`;
+    });
+    html += '</div>';
+  }
+
+  el.innerHTML = html;
 }
 
 // Per-question stats rendering
@@ -411,6 +496,18 @@ function renderQuestionStats(stats) {
         ).join('') + '</div>';
     }
 
+    // Build timing + change-mind badges
+    let metaHtml = '';
+    if (s.avgResponseMs != null) {
+      metaHtml += `<span class="badge badge-blue" style="font-size:0.62rem;padding:0.15rem 0.5rem;" title="Genomsnittlig svarstid">&#9201; ${formatMs(s.avgResponseMs)}</span>`;
+    }
+    if (s.changedToCorrect > 0) {
+      metaHtml += `<span class="badge badge-green" style="font-size:0.62rem;padding:0.15rem 0.5rem;" title="Ändrade fel→rätt">${s.changedToCorrect} ändrade till rätt</span>`;
+    }
+    if (s.changedToWrong > 0) {
+      metaHtml += `<span class="badge badge-red" style="font-size:0.62rem;padding:0.15rem 0.5rem;" title="Ändrade rätt→fel">${s.changedToWrong} ändrade till fel</span>`;
+    }
+
     row.innerHTML = `
       <div class="stat-header">
         <span class="stat-q-num">${i + 1}.</span>
@@ -426,6 +523,7 @@ function renderQuestionStats(stats) {
         <span class="text-muted" style="font-size:0.7rem">Svar: ${esc(s.correctAnswer)}</span>
         ${distHtml}
       </div>
+      ${metaHtml ? `<div class="gap-row mt-1" style="gap:0.35rem;flex-wrap:wrap;">${metaHtml}</div>` : ''}
     `;
     el.appendChild(row);
   });
@@ -442,6 +540,10 @@ document.getElementById('start-review-btn').addEventListener('click', () => {
   socket.emit('start-review', { code });
   document.getElementById('results-modal').classList.remove('visible');
   showToast('Startar genomgång...', 'info');
+});
+
+document.getElementById('review-prev-btn').addEventListener('click', () => {
+  socket.emit('review-prev', { code });
 });
 
 document.getElementById('review-next-btn').addEventListener('click', () => {
@@ -474,6 +576,21 @@ socket.on('review-question', (data) => {
     </div>
   `;
 
+  // Timing + change-mind insights
+  let insightsHtml = '';
+  if (data.avgResponseMs != null) {
+    insightsHtml += `<span class="badge badge-blue" style="font-size:0.68rem;">&#9201; Snitt: ${formatMs(data.avgResponseMs)}</span>`;
+  }
+  if (data.changedToCorrect > 0) {
+    insightsHtml += `<span class="badge badge-green" style="font-size:0.68rem;">${data.changedToCorrect} ändrade till rätt</span>`;
+  }
+  if (data.changedToWrong > 0) {
+    insightsHtml += `<span class="badge badge-red" style="font-size:0.68rem;">${data.changedToWrong} ändrade till fel</span>`;
+  }
+  if (insightsHtml) {
+    distEl.innerHTML += `<div class="gap-row mt-1" style="gap:0.35rem;flex-wrap:wrap;">${insightsHtml}</div>`;
+  }
+
   // Distractors
   const dEl = document.getElementById('review-distractors');
   if (data.distractors.length > 0) {
@@ -492,6 +609,9 @@ socket.on('review-question', (data) => {
   } else {
     btn.textContent = 'Nästa fråga';
   }
+
+  // Show/hide prev button
+  document.getElementById('review-prev-btn').style.display = data.reviewIndex > 0 ? '' : 'none';
 });
 
 socket.on('review-ended', () => {
@@ -515,9 +635,10 @@ document.getElementById('export-csv-btn').addEventListener('click', () => {
   const data = window._lastResults;
   if (!data) return;
 
-  const rows = [['Plats', 'Namn', 'Rätt', 'Fel', 'Bingo', 'Streak']];
+  const rows = [['Plats', 'Namn', 'Rätt', 'Fel', 'Bingo', 'Streak', 'Snitt svarstid (s)']];
   data.results.forEach((r, i) => {
-    rows.push([i + 1, r.name, r.correctCount, r.wrongCount, r.hasBingo ? 'Ja' : 'Nej', `${r.bestStreak}/${data.boardSize}`]);
+    const avgSec = r.avgResponseMs != null ? (r.avgResponseMs / 1000).toFixed(1) : '';
+    rows.push([i + 1, r.name, r.correctCount, r.wrongCount, r.hasBingo ? 'Ja' : 'Nej', `${r.bestStreak}/${data.boardSize}`, avgSec]);
   });
 
   const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -536,4 +657,10 @@ function esc(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
+}
+
+function formatMs(ms) {
+  if (ms < 1000) return ms + ' ms';
+  const secs = (ms / 1000).toFixed(1);
+  return secs + ' s';
 }
