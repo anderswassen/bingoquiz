@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lärarvy — BingoQuiz</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script>(function(){var t=localStorage.getItem('bq_theme')||'dark';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('bq_a11y')==='true')document.documentElement.setAttribute('data-a11y','true');})()</script>
+</head>
+<body>
+  <main class="container">
+    <div class="gap-row" style="justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
+      <div>
+        <h1 id="game-title">BingoQuiz</h1>
+        <p class="subtitle" id="game-subtitle">Läxförhör</p>
+      </div>
+      <div style="text-align: right;">
+        <div class="section-label">Spelkod</div>
+        <div class="game-code" id="game-code">------</div>
+        <button class="btn btn-danger mt-1" id="end-game-btn" style="font-size: 0.72rem; padding: 0.4rem 1rem;">Avsluta spel</button>
+      </div>
+    </div>
+
+    <!-- Active question banner -->
+    <div class="active-question-banner" id="aq-banner" aria-live="polite">
+      <div class="aq-label">Aktuell fråga</div>
+      <div class="aq-question" id="aq-question"></div>
+      <div class="aq-answer">Svar: <strong id="aq-answer"></strong></div>
+      <div class="gap-row mt-1" style="justify-content: space-between; align-items: center;">
+        <span class="text-muted" style="font-size: 0.75rem;">
+          Svar inkomna: <strong id="aq-response-count">0</strong> / <strong id="aq-student-count">0</strong>
+        </span>
+        <button class="btn btn-success" id="reveal-btn" style="font-size: 0.72rem; padding: 0.4rem 1rem;">Visa svaret</button>
+      </div>
+    </div>
+
+    <div class="teacher-layout">
+      <!-- Questions panel -->
+      <div class="card" style="animation-delay: 0.05s">
+        <div class="gap-row mb-1" style="justify-content: space-between">
+          <span class="section-label" style="margin: 0">Frågor</span>
+          <span class="badge badge-blue" id="questions-progress">0 / 0 ställda</span>
+        </div>
+        <ul class="question-list" id="question-list"></ul>
+      </div>
+
+      <!-- Students panel -->
+      <div class="card" style="animation-delay: 0.1s">
+        <div class="gap-row mb-1" style="justify-content: space-between">
+          <span class="section-label" style="margin: 0">Elever</span>
+          <span class="badge badge-purple" id="student-count-badge">0 anslutna</span>
+        </div>
+        <div id="no-students" class="text-muted text-center mt-2" style="font-size: 0.82rem;">
+          Väntar på att elever ansluter...
+        </div>
+        <ul class="student-list" id="student-list"></ul>
+      </div>
+
+      <!-- Hesitation panel -->
+      <div class="card full-width" style="animation-delay: 0.15s">
+        <span class="section-label">Svåra begrepp</span>
+        <p class="text-muted mb-1" style="font-size: 0.75rem;">Begrepp som elever valt och sedan ändrat sig från. Siffran visar antal gånger.</p>
+        <div id="hesitation-panel" class="text-muted" style="font-size: 0.82rem;">Inga tveksamheter registrerade än.</div>
+      </div>
+
+      <!-- Bingo log -->
+      <div class="card full-width" style="animation-delay: 0.2s">
+        <span class="section-label">Bingo-logg</span>
+        <div id="bingo-log" class="text-muted" style="font-size: 0.82rem;" aria-live="polite">Ingen bingo än.</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Results modal -->
+  <div class="modal-overlay" id="results-modal" role="dialog" aria-modal="true" aria-labelledby="results-title">
+    <div class="modal-content" style="max-width: 700px;">
+      <div class="gap-row mb-2" style="justify-content: space-between">
+        <h2 id="results-title">Resultat</h2>
+        <div class="gap-row">
+          <button class="btn" id="export-csv-btn">Exportera CSV</button>
+          <button class="btn" id="results-close">&times; Stäng</button>
+        </div>
+      </div>
+      <div class="gap-row mb-2" id="results-stats"></div>
+      <div class="section-label">Rankning</div>
+      <div id="results-ranking"></div>
+      <div class="section-label mt-2">Per fråga</div>
+      <div id="results-question-stats"></div>
+
+      <div class="section-label mt-2">Svåraste begreppen</div>
+      <div id="results-hard-terms" class="text-muted" style="font-size: 0.82rem;">Inga data.</div>
+
+      <div class="text-center mt-2">
+        <button class="btn btn-primary" id="start-review-btn" style="font-size: 0.9rem; padding: 0.75rem 2rem;">Gå igenom svaren med klassen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Review modal -->
+  <div class="modal-overlay" id="review-modal" role="dialog" aria-modal="true" aria-labelledby="review-title">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="gap-row mb-1" style="justify-content: space-between">
+        <h2 id="review-title">Genomgång</h2>
+        <span class="badge badge-blue" id="review-progress">1 / 1</span>
+      </div>
+      <div class="review-question-text" id="review-q-text"></div>
+      <div class="review-correct-answer" id="review-correct">
+        <span class="section-label" style="margin: 0">Rätt svar</span>
+        <span id="review-answer-text"></span>
+      </div>
+      <div class="review-distribution mt-2" id="review-dist"></div>
+      <div class="review-distractors mt-1" id="review-distractors"></div>
+      <div class="text-center mt-2">
+        <button class="btn btn-primary" id="review-next-btn" style="padding: 0.65rem 2.5rem;">Nästa fråga</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student detail modal -->
+  <div class="modal-overlay" id="student-modal" role="dialog" aria-modal="true" aria-labelledby="modal-student-name">
+    <div class="modal-content">
+      <div class="gap-row mb-2" style="justify-content: space-between">
+        <h2 id="modal-student-name">Elev</h2>
+        <button class="btn" id="modal-close">&times; Stäng</button>
+      </div>
+      <div class="gap-row mb-2">
+        <span class="badge badge-green" id="modal-correct">0 rätt</span>
+        <span class="badge badge-red" id="modal-wrong">0 fel</span>
+        <span class="badge badge-amber" id="modal-bingo-status">Ingen bingo</span>
+      </div>
+      <div class="mini-board" id="modal-board"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toasts" aria-live="assertive"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/teacher.js"></script>
+</body>
+</html>

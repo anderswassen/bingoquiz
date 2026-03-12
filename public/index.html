@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BingoQuiz</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script>(function(){var t=localStorage.getItem('bq_theme')||'dark';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('bq_a11y')==='true')document.documentElement.setAttribute('data-a11y','true');})()</script>
+</head>
+<body>
+  <main class="container narrow">
+    <div class="text-center mt-3">
+      <h1>BingoQuiz</h1>
+      <p class="subtitle">Gamifierat läxförhör för klassrummet</p>
+    </div>
+
+    <div class="landing-grid">
+      <!-- Teacher -->
+      <div class="card" style="animation-delay: 0.05s">
+        <h2>Lärare</h2>
+        <p>Skapa ett nytt spel med frågor och svar. Dela spelkoden med dina elever och styr läxförhöret.</p>
+        <a href="/create.html" class="btn btn-primary">Skapa nytt spel</a>
+      </div>
+
+      <!-- Student -->
+      <div class="card" style="animation-delay: 0.1s">
+        <h2>Elev</h2>
+        <p>Skriv in spelkoden du fått av din lärare och ditt namn för att få din bingobricka.</p>
+        <form id="join-form" role="form" aria-label="Gå med i spelet">
+          <div style="margin-bottom: 0.75rem">
+            <label for="game-code">Spelkod</label>
+            <input type="text" id="game-code" placeholder="T.ex. ABC123" maxlength="6" autocomplete="off" style="text-transform: uppercase">
+          </div>
+          <div style="margin-bottom: 0.75rem">
+            <label for="student-name">Ditt namn</label>
+            <input type="text" id="student-name" placeholder="Förnamn Efternamn" maxlength="40" autocomplete="off">
+          </div>
+          <button type="submit" class="btn btn-success" id="join-btn">Gå med i spelet</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Help section -->
+    <div class="card full-width mt-2" style="animation-delay: 0.15s">
+      <div class="gap-row mb-1" style="justify-content: space-between; cursor: pointer;" id="help-toggle" role="button" aria-expanded="false" aria-controls="help-content">
+        <span class="section-label" style="margin: 0">Så fungerar BingoQuiz</span>
+        <span class="text-muted" style="font-size: 0.75rem;" id="help-arrow">&#9660; Visa</span>
+      </div>
+      <div id="help-content" class="hidden">
+        <div class="help-grid">
+          <div class="help-step">
+            <div class="help-num">1</div>
+            <div>
+              <strong>Läraren skapar spelet</strong>
+              <p>Skriv in frågor och svar, eller välj en färdig frågebank. Välj brickstorlek (3&times;3, 4&times;4 eller 5&times;5).</p>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-num">2</div>
+            <div>
+              <strong>Eleverna ansluter</strong>
+              <p>Dela spelkoden med klassen. Varje elev skriver in sitt namn och får en unik, slumpad bingobricka med svarsalternativ.</p>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-num">3</div>
+            <div>
+              <strong>Läraren ställer frågor</strong>
+              <p>En fråga i taget visas för eleverna. Läraren ser frågan och det korrekta svaret.</p>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-num">4</div>
+            <div>
+              <strong>Eleverna svarar på brickan</strong>
+              <p>Eleven klickar på det svar de tror är rätt. Man kan ändra sig så länge frågan är aktiv. Eleven ser inte om svaret är rätt eller fel.</p>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-num">5</div>
+            <div>
+              <strong>Läraren följer framstegen</strong>
+              <p>I realtid ser läraren varje elevs bricka med gröna (rätt) och röda (fel) markeringar, plus vilka begrepp eleverna tvekar på.</p>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-num">6</div>
+            <div>
+              <strong>BINGO!</strong>
+              <p>Första eleven som får en hel rad, kolumn eller diagonal med korrekta svar ropar bingo! Läraren kan verifiera att det stämmer.</p>
+            </div>
+          </div>
+        </div>
+        <div class="help-features mt-2">
+          <span class="section-label">Funktioner</span>
+          <ul class="help-list">
+            <li><strong>Visa svaret</strong> — Läraren kan avslöja rätt svar efter varje fråga. Eleverna ser sitt svar blinka grönt eller rött.</li>
+            <li><strong>Närmast bingo</strong> — Läraren ser i realtid hur nära varje elev är att få bingo (t.ex. 3/5).</li>
+            <li><strong>Svåra begrepp</strong> — Begrepp som elever väljer och sedan ångrar sig från flaggas automatiskt.</li>
+            <li><strong>Resultatsammanfattning</strong> — Avsluta spelet för att se rankning, statistik och exportera till CSV.</li>
+            <li><strong>Per-fråga-statistik</strong> — Se hur många som svarade rätt, fel eller inte alls på varje enskild fråga, inklusive vanligaste felsvaren.</li>
+            <li><strong>Genomgång</strong> — Gå igenom alla frågor med klassen efter spelet. Varje elev ser sitt eget resultat per fråga, och läraren ser fördelningen.</li>
+            <li><strong>Frågebanker</strong> — Färdiga frågor inom Ekonomi och Historia (gymnasiet åk 2). Byt ut enskilda frågor eller slumpa nya.</li>
+            <li><strong>Valfri brickstorlek</strong> — 3&times;3 (snabbt), 4&times;4 (mellanstort) eller 5&times;5 (klassiskt).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-2" style="font-size: 0.68rem; color: var(--text-tertiary);">
+      <span id="version-label">BingoQuiz</span>
+    </div>
+  </div>
+
+  </main>
+
+  <div class="toast-container" id="toasts" aria-live="assertive"></div>
+
+  <script src="/js/theme.js"></script>
+  <script>
+    function showToast(msg, type = 'info') {
+      const c = document.getElementById('toasts');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    document.getElementById('help-toggle').addEventListener('click', () => {
+      const content = document.getElementById('help-content');
+      const arrow = document.getElementById('help-arrow');
+      content.classList.toggle('hidden');
+      const open = !content.classList.contains('hidden');
+      arrow.innerHTML = open ? '&#9650; Dölj' : '&#9660; Visa';
+      document.getElementById('help-toggle').setAttribute('aria-expanded', open);
+    });
+
+    fetch('/api/version').then(r => r.json()).then(d => {
+      document.getElementById('version-label').textContent = `BingoQuiz v${d.version}`;
+    }).catch(() => {});
+
+    document.getElementById('join-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = document.getElementById('game-code').value.trim().toUpperCase();
+      const name = document.getElementById('student-name').value.trim();
+
+      if (!code) return showToast('Ange en spelkod.', 'error');
+      if (!name) return showToast('Du måste skriva in ditt namn.', 'error');
+
+      // Verify game exists
+      const btn = document.getElementById('join-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/games/${code}`);
+        if (!res.ok) {
+          showToast('Spelet hittades inte. Kontrollera koden.', 'error');
+          btn.disabled = false;
+          return;
+        }
+        // Store name and navigate
+        sessionStorage.setItem('bq_name', name);
+        window.location.href = `/play.html?code=${code}`;
+      } catch {
+        showToast('Kunde inte ansluta till servern.', 'error');
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

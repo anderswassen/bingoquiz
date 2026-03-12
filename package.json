@@ -1,0 +1,17 @@
+{
+  "name": "bingoquiz",
+  "version": "0.1.0",
+  "description": "Gamifierat bingo-läxförhör för klassrummet",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spela — BingoQuiz</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script>(function(){var t=localStorage.getItem('bq_theme')||'dark';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('bq_a11y')==='true')document.documentElement.setAttribute('data-a11y','true');})()</script>
+</head>
+<body>
+  <main class="container narrow">
+
+    <!-- Join form (shown if no name in sessionStorage) -->
+    <div id="join-section">
+      <div class="text-center mt-3">
+        <h1>BingoQuiz</h1>
+        <p class="subtitle">Skriv in ditt namn för att få din bingobricka</p>
+      </div>
+      <div class="join-form">
+        <div class="card">
+          <div class="field">
+            <label for="name-input">Ditt namn</label>
+            <input type="text" id="name-input" placeholder="Förnamn Efternamn" maxlength="40" autocomplete="off" autofocus>
+          </div>
+          <button class="btn btn-success" id="name-submit" style="width: 100%;">Hämta min bricka</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game area (hidden until board is assigned) -->
+    <div id="game-section" class="hidden">
+      <div class="play-header">
+        <h1>BingoQuiz</h1>
+        <p class="student-name" id="display-name"></p>
+      </div>
+
+      <!-- Current question -->
+      <div class="current-question" id="question-box" aria-live="assertive">
+        <div class="cq-waiting">Väntar på att läraren ställer en fråga...</div>
+      </div>
+
+      <!-- Bingo board -->
+      <div class="bingo-board" id="bingo-board" role="grid" aria-label="Bingobricka"></div>
+
+      <!-- Review overlay -->
+      <div id="review-overlay" class="review-overlay hidden">
+        <div class="review-card">
+          <div class="review-progress-text">Fråga <span id="review-num">1</span> av <span id="review-total">1</span></div>
+          <div class="review-q" id="review-q"></div>
+          <div class="review-result" id="review-result"></div>
+          <div class="review-my-answer" id="review-my-answer"></div>
+        </div>
+      </div>
+
+      <!-- Bingo banner -->
+      <div class="bingo-banner" id="bingo-banner" aria-live="polite">
+        <h2>BINGO!</h2>
+        <p>Snyggt jobbat! Meddela din lärare.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="toast-container" id="toasts" aria-live="assertive"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/play.js"></script>
+</body>
+</html>

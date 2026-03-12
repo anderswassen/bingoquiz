@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skapa spel — BingoQuiz</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script>(function(){var t=localStorage.getItem('bq_theme')||'dark';document.documentElement.setAttribute('data-theme',t);if(localStorage.getItem('bq_a11y')==='true')document.documentElement.setAttribute('data-a11y','true');})()</script>
+</head>
+<body>
+  <main class="container narrow">
+    <h1>Skapa nytt spel</h1>
+    <p class="subtitle" id="min-info">Ange minst 24 frågor med tillhörande svar (termer som visas på bingobrickan).</p>
+
+    <div class="card" style="animation-delay: 0.05s">
+      <div style="margin-bottom: 1.25rem">
+        <label for="quiz-title">Titel på läxförhöret</label>
+        <input type="text" id="quiz-title" placeholder="T.ex. Ekonomi kapitel 3">
+      </div>
+
+      <div class="section-label">Ämne / frågebank</div>
+      <div class="pool-picker" id="pool-picker" role="radiogroup" aria-label="Välj frågebank">
+        <button class="btn pool-option active" data-pool="" role="radio" aria-checked="true">Egna frågor</button>
+        <!-- Filled dynamically from /api/pools -->
+      </div>
+
+      <div class="pool-actions hidden" id="pool-actions">
+        <div class="gap-row">
+          <button class="btn btn-success" id="shuffle-all-btn">Slumpa nya frågor</button>
+          <span class="text-muted" id="pool-info"></span>
+        </div>
+      </div>
+
+      <div class="section-label">Brickstorlek</div>
+      <div class="size-picker" id="size-picker" role="radiogroup" aria-label="Välj brickstorlek">
+        <button class="btn size-option" data-size="3" role="radio" aria-checked="false">
+          <span class="size-grid">3 &times; 3</span>
+          <span class="size-info">min 8 frågor</span>
+        </button>
+        <button class="btn size-option" data-size="4" role="radio" aria-checked="false">
+          <span class="size-grid">4 &times; 4</span>
+          <span class="size-info">min 16 frågor</span>
+        </button>
+        <button class="btn size-option active" data-size="5" role="radio" aria-checked="true">
+          <span class="size-grid">5 &times; 5</span>
+          <span class="size-info">min 24 frågor</span>
+        </button>
+      </div>
+
+      <div class="section-label mt-2">Frågor &amp; svar</div>
+
+      <!-- Column headers -->
+      <div class="term-row" style="margin-bottom: 0.25rem">
+        <span></span>
+        <span style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); font-weight: 600;">Fråga</span>
+        <span style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); font-weight: 600;">Svar (term på brickan)</span>
+        <span></span>
+        <span></span>
+      </div>
+
+      <div id="terms-container"></div>
+
+      <div class="actions-bar">
+        <button class="btn" id="add-row-btn">+ Lägg till rad</button>
+        <button class="btn" id="toggle-bulk-btn">Klistra in från kalkylblad</button>
+      </div>
+
+      <div class="bulk-area hidden" id="bulk-area">
+        <label for="bulk-input">Klistra in frågor och svar (tabb-separerade, en rad per fråga)</label>
+        <textarea id="bulk-input" placeholder="Vad kallas prisökning?&#9;Inflation&#10;Tillgång och efterfrågan styr...&#9;Marknadslagen"></textarea>
+        <button class="btn btn-primary mt-1" id="parse-bulk-btn">Importera</button>
+      </div>
+    </div>
+
+    <div class="actions-bar mt-2">
+      <button class="btn btn-primary" id="create-btn" style="font-size: 0.9rem; padding: 0.75rem 2rem;">Skapa spel</button>
+      <span class="text-muted" id="term-count" aria-live="polite">0 frågor</span>
+    </div>
+  </main>
+
+  <div class="toast-container" id="toasts" aria-live="assertive"></div>
+
+  <script src="/js/theme.js"></script>
+  <script src="/js/create.js"></script>
+</body>
+</html>
