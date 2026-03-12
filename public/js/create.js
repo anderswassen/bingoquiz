@@ -195,7 +195,10 @@ async function loadPools() {
       const btn = document.createElement('button');
       btn.className = 'btn pool-option';
       btn.dataset.pool = p.id;
-      btn.innerHTML = `${p.name}<span class="pool-count">${p.description} &mdash; ${p.count} frågor</span>`;
+      // Extract year from description (e.g. "Gymnasiet årskurs 2" → "Åk 2")
+      const ykMatch = p.description.match(/årskurs\s*(\d)/i);
+      const yearLabel = ykMatch ? `Åk ${ykMatch[1]}` : '';
+      btn.innerHTML = `<span class="pool-name">${p.name}</span>${yearLabel ? `<span class="pool-year">${yearLabel}</span>` : ''}`;
       picker.appendChild(btn);
     });
 
@@ -234,7 +237,7 @@ async function selectPool(poolId) {
     const pool = await res.json();
     poolQuestions = pool.questions;
 
-    document.getElementById('quiz-title').value = pool.name + ' — ' + pool.description;
+    document.getElementById('quiz-title').value = pool.name;
     document.getElementById('pool-info').textContent = `${pool.questions.length} frågor i poolen`;
     document.getElementById('pool-actions').classList.remove('hidden');
 

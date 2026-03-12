@@ -456,27 +456,46 @@ textarea::placeholder {
    Create page — pool picker
    ========================================================= */
 .pool-picker {
-  display: flex;
-  gap: 0.65rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
   margin-bottom: 1.25rem;
-  flex-wrap: wrap;
 }
 .pool-option {
-  flex: 1;
-  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  padding: 0.6rem 0.5rem;
+  min-height: 56px;
+  overflow: hidden;
 }
 .pool-option.active {
   background: var(--pool-active-bg);
   border-color: var(--pool-active-border);
   box-shadow: 0 0 12px rgba(52, 211, 153, 0.1);
 }
-.pool-option .pool-count {
-  display: block;
-  font-size: 0.68rem;
+.pool-option .pool-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.pool-option .pool-year {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--text-tertiary);
-  font-weight: 400;
-  margin-top: 0.15rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  margin-top: 0.25rem;
 }
 .pool-actions {
   margin-bottom: 1.25rem;
