@@ -6,7 +6,7 @@
     { "id": "ek1_0", "question": "Vad kallas den systematiska registreringen av ett företags ekonomiska händelser?", "answer": "Bokföring" },
     { "id": "ek1_1", "question": "Vad kallas den rapport som visar ett företags intäkter och kostnader under en period?", "answer": "Resultaträkning" },
     { "id": "ek1_2", "question": "Vad kallas den rapport som visar ett företags tillgångar och skulder vid ett givet datum?", "answer": "Balansräkning" },
-    { "id": "ek1_3", "question": "Vad kallas principen att balansräkningens tillgångar = eget kapital + skulder?", "answer": "Balanslikationen" },
+    { "id": "ek1_3", "question": "Vad kallas principen att balansräkningens tillgångar = eget kapital + skulder?", "answer": "Balansekvationen" },
     { "id": "ek1_4", "question": "Vad kallas det konto där alla ekonomiska händelser först registreras?", "answer": "Grundbok" },
     { "id": "ek1_5", "question": "Vad kallas den plan som listar alla konton i ett bokföringssystem?", "answer": "Kontoplan" },
     { "id": "ek1_6", "question": "Vad kallas det belopp som återstår efter att alla kostnader dragits från intäkterna?", "answer": "Vinst" },

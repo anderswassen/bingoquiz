@@ -48,10 +48,10 @@
     { "id": "sv1_42", "question": "Vad kallas den del av retoriken som handlar om att organisera talet?", "answer": "Dispositio" },
     { "id": "sv1_43", "question": "Vad kallas det att anpassa sitt språk efter situation och mottagare?", "answer": "Språklig anpassning" },
     { "id": "sv1_44", "question": "Vad kallas ordklassen som binder samman ord eller satser (t.ex. och, men, eller)?", "answer": "Konjunktion" },
-    { "id": "sv1_45", "question": "Vem skrev dikten 'Nyårsklockan'?", "answer": "Tennyson" },
+    { "id": "sv1_45", "question": "Vad kallas en dikt utan fast rim och rytm?", "answer": "Fri vers" },
     { "id": "sv1_46", "question": "Vad kallas den stilfigur där man ersätter ett ord med ett mildare uttryck?", "answer": "Eufemism" },
     { "id": "sv1_47", "question": "Vad kallas den stilfigur där man säger motsatsen till vad man menar?", "answer": "Ironi" },
-    { "id": "sv1_48", "question": "Vad kallas de tre stegen i en retorisk analys: ethos, pathos och logos?", "answer": "Retorisk triangeln" },
+    { "id": "sv1_48", "question": "Vad kallas de tre stegen i en retorisk analys: ethos, pathos och logos?", "answer": "Retoriska triangeln" },
     { "id": "sv1_49", "question": "Vad kallas den litterära epok i Sverige under tidigt 1900-tal med arbetarförfattare?", "answer": "Arbetarlitteraturen" }
   ]
 }

@@ -3,7 +3,7 @@
   "name": "Matematik",
   "description": "Matematik 1 — Gymnasiet årskurs 1",
   "questions": [
-    { "id": "mat1_0", "question": "Vad kallas en andragradsformel som används för att lösa ekvationen ax² + bx + c = 0?", "answer": "PQ-formeln" },
+    { "id": "mat1_0", "question": "Vad kallas den formel som används för att lösa andragradsekvationer på formen x² + px + q = 0?", "answer": "PQ-formeln" },
     { "id": "mat1_1", "question": "Vad är 15% av 200?", "answer": "30" },
     { "id": "mat1_2", "question": "Vad kallas ett uttryck med variabler och konstanter sammankopplade med räkneoperationer?", "answer": "Algebraiskt uttryck" },
     { "id": "mat1_3", "question": "Vad kallas det värde som förekommer flest gånger i en datamängd?", "answer": "Typvärde" },
